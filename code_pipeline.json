@@ -1,0 +1,291 @@
+{
+  "Resources": {
+    "UdacityProject4Pipeline": {
+      "Type": "AWS::CodePipeline::Pipeline",
+      "Properties": {
+        "RoleArn": {
+          "Fn::GetAtt": ["UdacityProject4PipelineRole", "Arn"]
+        },
+        "Stages": [
+          {
+            "Name": "Source",
+            "Actions": [
+              {
+                "Name": "SourceAction",
+                "ActionTypeId": {
+                  "Category": "Source",
+                  "Owner": "ThirdParty",
+                  "Provider": "GitHub",
+                  "Version": "1"
+                },
+                "Configuration": {
+                  "Owner": {
+                    "Ref": "GithubUsername"
+                  },
+                  "Repo": {
+                    "Ref": "GithubRepositoryName"
+                  },
+                  "OAuthToken": {
+                    "Ref": "GithubAccessToken"
+                  },
+                  "Branch": "master"
+                },
+                "OutputArtifacts": [
+                  {
+                    "Name": "App"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "Name": "Build",
+            "Actions": [
+              {
+                "Name": "BuildAction",
+                "ActionTypeId": {
+                  "Category": "Build",
+                  "Owner": "AWS",
+                  "Version": "1",
+                  "Provider": "CodeBuild"
+                },
+                "Configuration": {
+                  "ProjectName": {
+                    "Ref": "UdacityProject4Build"
+                  }
+                },
+                "InputArtifacts": [
+                  {
+                    "Name": "App"
+                  }
+                ],
+                "OutputArtifacts": [
+                  {
+                    "Name": "AppBuildResult"
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "ArtifactStore": {
+          "Type": "S3",
+          "Location": {
+            "Ref": "UdacityProject4ArtifactsBucket"
+          }
+        }
+      },
+      "DependsOn": "UdacityProject4Build"
+    },
+    "UdacityProject4Build": {
+      "Type": "AWS::CodeBuild::Project",
+      "Properties": {
+        "Artifacts": {
+          "Type": "CODEPIPELINE"
+        },
+        "Source": {
+          "Type": "CODEPIPELINE"
+        },
+        "Environment": {
+          "ComputeType": "BUILD_GENERAL1_SMALL",
+          "Image": "aws/codebuild/docker:17.09.0",
+          "Type": "LINUX_CONTAINER",
+          "EnvironmentVariables": [
+            {
+              "Name": "REPOSITORY_URI",
+              "Value": {
+                "Fn::Sub": "${AWS::AccountId}.dks.ecr.${AWS::Region}.amazonaws.com/${UdacityProject4Ecr}"
+              }
+            },
+            {
+              "Name": "EKS_CLUSTER_NAME",
+              "Value": {
+                "Ref": "EKSClusterName"
+              }
+            },
+            {
+              "Name": "EKS_KUBECTL_ROLE",
+              "Value": {
+                "Fn::Sub": "arn:aws:iam::${AWS::AccountId}:role/${KubectlRole}"
+              }
+            }
+          ]
+        },
+        "ServiceRole": {
+          "Fn::GetAtt": ["UdacityProject4BuildRole", "Arn"]
+        }
+      }
+    },
+    "UdacityProject4Ecr": {
+      "Type": "AWS::ECR::Repository",
+      "DeletionPolicy": "Retain"
+    },
+    "UdacityProject4ArtifactsBucket": {
+      "Type": "AWS::S3::Bucket",
+      "DeletionPolicy": "Retain"
+    },
+    "UdacityProject4PipelineRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "Path": "/",
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "codepipeline.amazonaws.com"
+              },
+              "Action": "sts:AssumeRole"
+            }
+          ]
+        },
+        "Policies": [
+          {
+            "PolicyName": "CodePipelineAccess",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Resource": "*",
+                  "Effect": "Allow",
+                  "Action": [
+                    "codebuild:StartBuild",
+                    "codebuild:BatchGetBuilds",
+                    "codecommit:GetBranch",
+                    "codecommit:GetCommit",
+                    "codecommit:UploadArchive",
+                    "codecommit:GetUploadArchiveStatus",
+                    "codecommit:CancelUploadArchive",
+                    "iam:PassRole"
+                  ]
+                },
+                {
+                  "Resource": {
+                    "Fn::Sub": "arn:aws:s3:::${UdacityProject4ArtifactsBucket}/*"
+                  },
+                  "Effect": "Allow",
+                  "Action": [
+                    "s3:PutObject",
+                    "s3:GetObject",
+                    "s3:GetObjectVersion",
+                    "s3:GetBucketVersioning"
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "DependsOn": "UdacityProject4ArtifactsBucket"
+    },
+    "UdacityProject4BuildRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "Path": "/",
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "codebuild.amazonaws.com"
+              },
+              "Action": "sts:AssumeRole"
+            }
+          ]
+        },
+        "Policies": [
+          {
+            "PolicyName": "CodebuildAccess",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Resource": {
+                    "Fn::Sub": "arn:aws:iam::${AWS::AccountId}:role/${KubectlRole}"
+                  },
+                  "Effect": "Allow",
+                  "Action": "sts:AssumeRole"
+                },
+                {
+                  "Resource": "*",
+                  "Effect": "Allow",
+                  "Action": [
+                    "eks:Describe*",
+                    "ssm:GetParameters",
+                    "logs:CreateLogGroup",
+                    "logs:CreateLogStream",
+                    "logs:PutLogEvents",
+                    "ecr:GetAuthorizationToken",
+                    "ec2:CreateNetworkInterface",
+                    "ec2:DesribeDhcpOptions",
+                    "ec2:DescribeNetworkInterfaces",
+                    "ec2:DeleteNetworkInterfaces",
+                    "ec2:DescribeSubnets",
+                    "ec2:DescribeSecurityGroups",
+                    "ec2:DescribeVpcs",
+                    "ec2:CreateNetworkInterfacePermission"
+                  ]
+                },
+                {
+                  "Resource": {
+                    "Fn::Sub": "arn:aws:s3:::${UdacityProject4ArtifactsBucket}/*"
+                  },
+                  "Effect": "Allow",
+                  "Action": [
+                    "s3:GetObject",
+                    "s3:PutObject",
+                    "s3:GetObjectVersion"
+                  ]
+                },
+                {
+                  "Resource": {
+                    "Fn::Sub": "arn:aws:ecr:${AWS::Region}:${AWS::AccountId}:repository/${UdacityProject4Ecr}"
+                  },
+                  "Effect": "Allow",
+                  "Action": [
+                    "ecr:GetDownloadUrlForLayer",
+                    "ecr:BatchGetImage",
+                    "ecr:BatchCheckLayerAvailability",
+                    "ecr:PutImage",
+                    "ecr:InitiateLayerUpload",
+                    "ecr:UploadLayerPart",
+                    "ecr:CompleteLayerUpload"
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  },
+  "Parameters": {
+    "GithubUsername": {
+      "Type": "String",
+      "Default": "your_github_account",
+      "Description": "Your github account that contains repository you want to setup codepipeline source stage"
+    },
+    "GithubRepositoryName": {
+      "Type": "String",
+      "Default": "your_repository",
+      "Description": "Name of repository which you want to setup codepipeline source stage"
+    },
+    "GithubAccessToken": {
+      "Type": "String",
+      "Default": "your_accesstoken",
+      "Description": "Access token you got from github"
+    },
+    "KubectlRole": {
+      "Type": "String",
+      "Default": "your_kubectl_rolename",
+      "Description": "Name of kubectl role"
+    },
+    "EKSClusterName": {
+      "Type": "String",
+      "Default": "demo",
+      "Description": "The name of EKS which you created on aws console"
+    }
+  }
+}
