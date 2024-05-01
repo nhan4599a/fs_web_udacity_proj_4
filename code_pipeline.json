@@ -94,7 +94,7 @@
             {
               "Name": "REPOSITORY_URI",
               "Value": {
-                "Fn::Sub": "${AWS::AccountId}.dks.ecr.${AWS::Region}.amazonaws.com/${UdacityProject4Ecr}"
+                "Fn::Sub": "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${UdacityProject4Ecr}"
               }
             },
             {
