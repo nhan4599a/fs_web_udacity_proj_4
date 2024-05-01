@@ -88,7 +88,7 @@
         },
         "Environment": {
           "ComputeType": "BUILD_GENERAL1_SMALL",
-          "Image": "aws/codebuild/amazonlinux-x86_64-lambda-standard:python3.11",
+          "Image": "aws/codebuild/docker:17.09.0",
           "Type": "LINUX_CONTAINER",
           "EnvironmentVariables": [
             {
