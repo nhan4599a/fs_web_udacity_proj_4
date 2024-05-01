@@ -222,7 +222,10 @@
                     "Fn::Sub": "arn:aws:iam::${AWS::AccountId}:role/${KubectlRole}"
                   },
                   "Effect": "Allow",
-                  "Action": "sts:AssumeRole"
+                  "Action": [
+                    "sts:AssumeRole",
+                    "eks:Describe*"
+                  ]
                 },
                 {
                   "Resource": "*",
