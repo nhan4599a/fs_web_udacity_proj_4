@@ -9,7 +9,7 @@ phases:
       - chmod +x ./kubectl ./aws-iam-authenticator
       - export PATH=$PWD/:$PATH
       - add-apt-repository ppa:deadsnakes/ppa
-      - apt-get update && apt-get -y install jq apt install python3.11 && pip3 install --upgrade awscli
+      - apt-get update && apt-get -y install jq python3.11 && pip3 install --upgrade awscli
   pre_build:
     commands:
       - TAG="$(date +%Y-%m-%d.%H.%M.%S).$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | head -c 8)"
