@@ -133,11 +133,11 @@
     },
     "UdacityProject4Ecr": {
       "Type": "AWS::ECR::Repository",
-      "DeletionPolicy": "Retain"
+      "DeletionPolicy": "Delete"
     },
     "UdacityProject4ArtifactsBucket": {
       "Type": "AWS::S3::Bucket",
-      "DeletionPolicy": "Retain"
+      "DeletionPolicy": "Delete"
     },
     "UdacityProject4PipelineRole": {
       "Type": "AWS::IAM::Role",
