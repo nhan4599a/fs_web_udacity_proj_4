@@ -16,7 +16,7 @@ def handler(event, context):
     client = boto3.client('iam')
     try:
         if event['RequestType'] == 'Create':
-            kubectl_role_name = event['ResourceProperties']['KubectlRoleName']
+            kubectl_role_name = event['ResourceProperties']['KubectlRole']
             build_role_arn = event['ResourceProperties']['CodeBuildServiceRoleArn']
 
             assume = client.get_role(RoleName = kubectl_role_name)
