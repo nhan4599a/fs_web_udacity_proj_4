@@ -114,6 +114,21 @@
         "ServiceRole": {
           "Fn::GetAtt": ["UdacityProject4BuildRole", "Arn"]
         }
+      },
+      "DependsOn": "UdacityProjec4KubectlAssumeRole"
+    },
+    "UdacityProject4Lambda": {
+      "Type": "AWS::Lambda::Function",
+      "Properties": {
+        "Code": {
+          "ZipFile": "import json\nimport boto3\nfrom botocore.vendored import requests\ndef handler(event, context):\n  response = {\n    'Status': 'SUCCESS',\n    'Reason': 'See the details in CloudWatch Log Stream: ' + context.log_stream_name,\n    'PhysicalResourceId': context.log_stream_name,\n    'StackId': event['StackId'],\n    'RequestId': event['RequestId'],\n    'LogicalResourceId': event['LogicalResourceId'],\n    'Data': {'Message': 'Resource creation successful!'},\n  }\n\n  client = boto3.client('iam')\n  try:\n    if event['RequestType'] == 'Create':\n      kubectl_role_name = event['ResourceProperties']['KubectlRole']\n      build_role_arn = event['ResourceProperties']['CodeBuildServiceRoleArn']\n\n      assume = client.get_role(RoleName = kubectl_role_name)\n      assume_doc = assume['Role']['AssumeRolePolicyDocument']\n      roles = [ { 'Effect': 'Allow', 'Principal': { 'AWS': build_role_arn }, 'Action': 'sts:AssumeRole' } ]\n\n      for statement in assume_doc['Statement']:\n        if 'AWS' in statement['Principal']:\n          if statement['Principal']['AWS'].startswith('arn:aws:iam:'):\n            roles.append(statement)\n\n      assume_doc['Statement'] = roles\n      update_response = client.update_assume_role_policy(RoleName = kubectl_role_name, PolicyDocument = json.dumps(assume_doc))\n  except Exception as e:\n    print(e)\n    response['Status'] = 'FAILED'\n    response['Reason'] = e\n    response['Data'] = {'Message': 'Resource creation failed'}\n\n  response_body = json.dumps(response)\n  headers = {'content-type': '', 'content-length': str(len(response_body)) }\n  put_response = requests.put(event['ResponseURL'], headers=headers, data=response_body)\n  return response"
+        },
+        "Handler": "index.handler",
+        "Role": {
+          "Fn::GetAtt": ["UdacityProject4LambdaExecutionRole", "Arn"]
+        },
+        "Runtime": "python3.7",
+        "Timeout": 300
       }
     },
     "UdacityProject4Ecr": {
@@ -259,6 +274,72 @@
           }
         ]
       }
+    },
+    "UdacityProject4LambdaExecutionRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "ManagedPolicyArns": [
+          "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
+          "arn:aws:iam::aws:policy/service-role/AWSLambdaENIManagementAccess"
+        ],
+        "Path": "/",
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com"
+              },
+              "Action": "sts:AssumeRole"
+            }
+          ]
+        },
+        "Policies": [
+            {
+                "PolicyName": "CodePipelineAccess",
+                "PolicyDocument": {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                        {
+                            "Resource": {
+                                "Fn::Sub": "arn:aws:iam::${AWS::AccountId}:role/${KubectlRole}"
+                            },
+                            "Effect": "Allow",
+                            "Action": [
+                                "iam:GetRole",
+                                "iam:UpdateAssumeRolePolicy"
+                            ]
+                        }
+                    ]
+                }
+            }
+        ]
+      }
+    },
+    "UdacityProjec4KubectlAssumeRole": {
+        "Type": "Custom::CustomResource",
+        "Properties": {
+            "ServiceToken": {
+                "Fn:GetAtt": [
+                    "UdacityProject4Lambda",
+                    "Arn"
+                ]
+            },
+            "KubectlRole": {
+                "Ref": "KubectlRole"
+            },
+            "CodeBuildServiceRoleArn": {
+                "Fn:GetAtt": [
+                    "UdacityProject4Build",
+                    "Arn"
+                ]
+            }
+        },
+        "DependsOn": [
+            "UdacityProject4Lambda",
+            "UdacityProject4BuildRole"
+        ]
     }
   },
   "Parameters": {

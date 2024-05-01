@@ -1,19 +1,19 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: udacity_proj_4
+  name: udacity-project-4
 spec:
   type: LoadBalancer
   ports:
     - port: 80
       targetPort: 8080
   selector:
-    app: udacity_proj_4
+    app: udacity-project-4
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: udacity_proj_4
+  name: udacity-project-4
 spec:
   replicas: 3
   strategy:
@@ -23,14 +23,14 @@ spec:
       maxSurge: 2
   selector:
     matchLabels:
-      app: udacity_proj_4
+      app: udacity-project-4
   template:
     metadata:
       labels:
-        app: udacity_proj_4
+        app: udacity-project-4
     spec:
       containers:
-        - name: udacity_proj_4
+        - name: udacity-project-4
           image: CONTAINER_IMAGE
           securityContext:
             privileged: false
