@@ -127,7 +127,7 @@
         "Role": {
           "Fn::GetAtt": ["UdacityProject4LambdaExecutionRole", "Arn"]
         },
-        "Runtime": "python3.7",
+        "Runtime": "python3.11",
         "Timeout": 300
       }
     },
@@ -296,50 +296,38 @@
           ]
         },
         "Policies": [
-            {
-                "PolicyName": "CodePipelineAccess",
-                "PolicyDocument": {
-                    "Version": "2012-10-17",
-                    "Statement": [
-                        {
-                            "Resource": {
-                                "Fn::Sub": "arn:aws:iam::${AWS::AccountId}:role/${KubectlRole}"
-                            },
-                            "Effect": "Allow",
-                            "Action": [
-                                "iam:GetRole",
-                                "iam:UpdateAssumeRolePolicy"
-                            ]
-                        }
-                    ]
+          {
+            "PolicyName": "CodePipelineAccess",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Resource": {
+                    "Fn::Sub": "arn:aws:iam::${AWS::AccountId}:role/${KubectlRole}"
+                  },
+                  "Effect": "Allow",
+                  "Action": ["iam:GetRole", "iam:UpdateAssumeRolePolicy"]
                 }
+              ]
             }
+          }
         ]
       }
     },
     "UdacityProjec4KubectlAssumeRole": {
-        "Type": "Custom::CustomResource",
-        "Properties": {
-            "ServiceToken": {
-                "Fn:GetAtt": [
-                    "UdacityProject4Lambda",
-                    "Arn"
-                ]
-            },
-            "KubectlRole": {
-                "Ref": "KubectlRole"
-            },
-            "CodeBuildServiceRoleArn": {
-                "Fn:GetAtt": [
-                    "UdacityProject4Build",
-                    "Arn"
-                ]
-            }
+      "Type": "Custom::CustomResource",
+      "Properties": {
+        "ServiceToken": {
+          "Fn::GetAtt": ["UdacityProject4Lambda", "Arn"]
         },
-        "DependsOn": [
-            "UdacityProject4Lambda",
-            "UdacityProject4BuildRole"
-        ]
+        "KubectlRole": {
+          "Ref": "KubectlRole"
+        },
+        "CodeBuildServiceRoleArn": {
+          "Fn::GetAtt": ["UdacityProject4BuildRole", "Arn"]
+        }
+      },
+      "DependsOn": ["UdacityProject4Lambda", "UdacityProject4BuildRole"]
     }
   },
   "Parameters": {
